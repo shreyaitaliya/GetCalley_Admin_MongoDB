@@ -3,6 +3,7 @@ const ExcelSheetDataModel = require('../models/getExcelSheetModel');
 const ExcelSheetDataHistoryModel = require('../models/getExcelSheetHistoryModel');
 const XLSX = require('xlsx');
 const fs = require('fs');
+const { error } = require('console');
 
 // Add Bulk
 const AddExcelFile = async (req, res) => {
@@ -17,6 +18,7 @@ const AddExcelFile = async (req, res) => {
 
         const fileData = {
             excelfile: req.file.filename,
+            listId: req.body.listId,
             createdBy: req.company.name,
         };
 
@@ -30,6 +32,7 @@ const AddExcelFile = async (req, res) => {
                 Contact: row.Contact,
                 Notes: row.Notes,
                 excelfileID: savedFile._id,
+                listId: savedFile.listId,
                 agentName: req.company.name,
             });
         }));
@@ -48,10 +51,10 @@ const AddExcelFile = async (req, res) => {
 // Add Manually
 const AddManually = async (req, res) => {
     try {
-        const { Name, Contact, Notes } = req.body;
+        const { Name, Contact, Notes, listId } = req.body;
         const agentName = req.company.name;
 
-        const AddData = await ExcelSheetDataModel.create({ Name, Contact, Notes, agentName });
+        const AddData = await ExcelSheetDataModel.create({ Name, Contact, Notes, listId, agentName });
 
         return res.status(200).send({
             success: true,
@@ -89,33 +92,32 @@ const GetAllData = async (req, res) => {
 // StartTime
 const StartCall = async (req, res) => {
     try {
-        const { id } = req.params;
+        const record = await ExcelSheetDataModel.findOne({ status: 'Pending' }).sort({ _id: 1 });
 
-        const record = await ExcelSheetDataModel.findById(id);
         if (!record) {
             return res.status(404).json({
                 success: false,
-                message: "Record not found"
+                message: "No pending calls found"
             });
         }
 
-        if (record.status === 'InProgress') {
-            return res.status(400).json({
+        if (record.dnd) {
+            return res.status(403).json({
                 success: false,
-                message: "Call is already in progress"
+                message: "Cannot start call: DND mode is enabled for this contact"
             });
         }
 
         const updatedRecord = await ExcelSheetDataModel.findByIdAndUpdate(
-            id,
+            record._id,
             {
                 status: 'InProgress',
                 callStartTime: new Date(),
-                callDate: Date.now(),
-                duration: null,
-                callEndTime: null
+                callDate: Date.now(), // Current date
+                duration: null, // Reset duration
+                callEndTime: null // Reset end time
             },
-            { new: true }
+            { new: true } // Return the updated document
         );
 
         return res.status(200).json({
@@ -124,10 +126,10 @@ const StartCall = async (req, res) => {
             data: updatedRecord
         });
     } catch (error) {
-        console.error('Error in startCall:', error);
+        console.error('Error in StartCall:', error);
         return res.status(500).json({
             success: false,
-            message: error.message
+            message: "An error occurred while starting the call"
         });
     }
 };
@@ -215,47 +217,6 @@ const DNDMode = async (req, res) => {
     }
 }
 
-// Delete Data
-const Delete = async (req, res) => {
-    try {
-        const { id } = req.params;
-        const FindData = await ExcelSheetDataModel.findByIdAndDelete(id);
-        if (!FindData) {
-            return res.status(400).send({
-                success: false,
-                message: 'Caller Data Can Not Found..'
-            })
-        }
-
-        const History = await ExcelSheetDataHistoryModel.create({
-            GetexcelDataID: FindData._id,
-            excelfileID: FindData.excelfileID,
-            Name: FindData.Name,
-            Contact: FindData.Contact,
-            Notes: FindData.Notes,
-            dnd: FindData.dnd,
-            status: FindData.status,
-            feedback: FindData.feedback,
-            callNotes: FindData.callNotes,
-            agentNamebackup: FindData.agentName,
-            duration: FindData.duration,
-            createdAt: new Date(),
-        })
-
-        return res.status(200).send({
-            success: true,
-            message: 'Called Data Deleted Successfully..'
-        })
-
-    } catch (error) {
-        console.log(error);
-        return res.status(400).send({
-            success: false,
-            message: error.message
-        })
-    }
-}
-
 // Latest Information
 const LatestInfo = async (req, res) => {
     try {
@@ -312,7 +273,8 @@ const CallHistory = async (req, res) => {
             feedback: data.feedback,
             callNotes: data.callNotes,
             callDate: data.callDate,
-            duration: data.duration
+            duration: data.duration,
+            reschedualDate: data.reschedualDate
         }));
 
         return res.status(200).send({
@@ -329,6 +291,97 @@ const CallHistory = async (req, res) => {
     }
 }
 
+// Reschedual Time
+const Reschedual = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { reschedualDate, reschedualTime, callNotes } = req.body;
+
+        // Validate the reschedualTime to ensure it's in HH:mm:ss format
+        const timeRegex = /^([01]?[0-9]|2[0-3]):([0-5]?[0-9]):([0-5]?[0-9])$/;
+        if (!timeRegex.test(reschedualTime)) {
+            return res.status(400).send({
+                success: false,
+                message: 'Invalid time format. Please use HH:mm:ss format.'
+            });
+        }
+
+        const FindData = await ExcelSheetDataModel.findById(id);
+        if (!FindData) {
+            return res.status(400).send({
+                success: false,
+                message: 'ExcelSheet Data Can Not Found..'
+            });
+        }
+
+        // Update the data
+        const UpdatData = await ExcelSheetDataModel.findByIdAndUpdate(
+            id,
+            {
+                reschedualDate,
+                reschedualTime,  // Store the time as a string, no need for date manipulation
+                callNotes,
+                lastModified: Date.now(),
+            },
+            { new: true }
+        );
+
+        return res.status(200).send({
+            success: true,
+            message: 'Reschedual Successfully..',
+            Data: UpdatData
+        });
+    } catch (error) {
+        console.log(error);
+        return res.status(400).send({
+            success: false,
+            message: error.message
+        });
+    }
+};
+
+// Delete Data
+const Delete = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const FindData = await ExcelSheetDataModel.findByIdAndDelete(id);
+        if (!FindData) {
+            return res.status(400).send({
+                success: false,
+                message: 'Caller Data Can Not Found..'
+            })
+        }
+
+        const History = await ExcelSheetDataHistoryModel.create({
+            GetexcelDataID: FindData._id,
+            excelfileID: FindData.excelfileID,
+            Name: FindData.Name,
+            Contact: FindData.Contact,
+            Notes: FindData.Notes,
+            dnd: FindData.dnd,
+            status: FindData.status,
+            feedback: FindData.feedback,
+            callNotes: FindData.callNotes,
+            agentNamebackup: FindData.agentName,
+            duration: FindData.duration,
+            createdAt: new Date(),
+        })
+
+        return res.status(200).send({
+            success: true,
+            message: 'Called Data Deleted Successfully..'
+        })
+
+    } catch (error) {
+        console.log(error);
+        return res.status(400).send({
+            success: false,
+            message: error.message
+        })
+    }
+}
+
+
 module.exports = {
-    AddExcelFile, AddManually, GetAllData, StartCall, DNDMode, PauseCall, Delete, LatestInfo, CallHistory
+    AddExcelFile, AddManually, GetAllData, StartCall, DNDMode, PauseCall, Delete, LatestInfo, CallHistory, Reschedual
 };

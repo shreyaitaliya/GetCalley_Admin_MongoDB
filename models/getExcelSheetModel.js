@@ -6,6 +6,11 @@ const ExcelSheetDataSchema = new mongoose.Schema({
         ref: 'ExcelModel',
         required: false
     },
+    listId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'list', // Referencing the 'list' collection
+        required: false,
+    },
     Name: {
         type: String,
         required: true
@@ -54,6 +59,14 @@ const ExcelSheetDataSchema = new mongoose.Schema({
     callDate: {
         type: Date,
         require: false,
+    },
+    reschedualDate: {
+        type: Date,
+        required: false,
+    },
+    reschedualTime: {
+        type: String,
+        required: false,
     },
     createdAt: {
         type: Date,

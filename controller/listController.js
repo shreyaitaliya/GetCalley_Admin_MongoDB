@@ -33,11 +33,52 @@ const AddList = async (req, res) => {
                 agentName: req.company.name,
             });
         }));
+        // const recordCount = await ExcelSheetDataModel.countDocuments({ excelfileID: savedFile._id });
 
         res.status(201).send({
             message: "File uploaded and data stored successfully",
             data: savedFile,
             sheetData: sheetData,
+            // TotalRecord: recordCount
+        });
+    } catch (error) {
+        console.log(error);
+        return res.status(400).send({
+            success: false,
+            message: error.message
+        })
+    }
+}
+
+const GetByID = async (req, res) => {
+    try {
+        const FindData = await ListModel.find();
+
+        // Check if data exists
+        if (!FindData || FindData.length === 0) {
+            return res.status(400).send({
+                success: false,
+                message: 'List Data Cannot Be Found..'
+            });
+        }
+
+        // Fetch list-wise record counts
+        const listDetails = await Promise.all(
+            FindData.map(async (data) => {
+                const recordCount = await ExcelSheetDataModel.countDocuments({ listId: data._id });
+                return {
+                    listname: data.listname,
+                    createdOn: data.createdOn,
+                    recordCount: recordCount,
+                };
+            })
+        );
+
+        // Send response
+        return res.status(200).send({
+            success: true,
+            message: 'List Data Viewed Successfully..',
+            lists: listDetails,
         });
     } catch (error) {
         console.log(error);
@@ -49,5 +90,5 @@ const AddList = async (req, res) => {
 }
 
 module.exports = ({
-    AddList
+    AddList, GetByID
 })

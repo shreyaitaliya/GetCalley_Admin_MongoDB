@@ -15,4 +15,13 @@ routes.use('/excelfile', require('../routes/bulkExcelRoutes'));
 // List Routes
 routes.use('/list', require('../routes/listRoutes'))
 
+// Feedbacks Routes
+routes.use('/feedback', require('../routes/feedbackRoutes'))
+
+// SMS Routes
+routes.use('/sms', require('../routes/SMSRoutes'))
+
+// SMS Routes
+routes.use('/subscription', require('../routes/subscriptionRoutes'))
+
 module.exports = routes     

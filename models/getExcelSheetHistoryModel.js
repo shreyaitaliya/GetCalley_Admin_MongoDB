@@ -11,6 +11,11 @@ const ExcelSheetDatahistorySchema = new mongoose.Schema({
         ref: 'ExcelModel',
         required: false
     },
+    listId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'list', // Referencing the 'list' collection
+        required: true,
+    },
     Name: {
         type: String,
         required: true

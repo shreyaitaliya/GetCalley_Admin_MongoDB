@@ -36,7 +36,7 @@ routes.post('/manually', TokenVerify, ExcelFileController.AddManually);
 
 routes.get('/', ExcelFileController.GetAllData);
 
-routes.put('/start/:id', ExcelFileController.StartCall);
+routes.put('/start', ExcelFileController.StartCall);
 
 routes.put('/dnd/:id', ExcelFileController.DNDMode);
 
@@ -47,5 +47,7 @@ routes.delete('/:id', ExcelFileController.Delete);
 routes.get('/latest', ExcelFileController.LatestInfo);
 
 routes.get('/history', ExcelFileController.CallHistory);
+
+routes.put('/reschedual/:id', ExcelFileController.Reschedual);
 
 module.exports = routes

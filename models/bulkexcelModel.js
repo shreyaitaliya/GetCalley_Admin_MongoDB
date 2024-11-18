@@ -5,6 +5,11 @@ const excelfileSchema = new mongoose.Schema({
         type: String,
         required: true,
     },
+    listId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'list', // Referencing the 'list' collection
+        required: true,
+    },
     createdBy: {
         type: String,
         required: true,
