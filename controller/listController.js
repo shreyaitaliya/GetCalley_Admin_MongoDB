@@ -1,4 +1,5 @@
 const { ListModel } = require('../models/ListModel');
+const { AgentModel } = require('../models/AgentModel');
 const ExcelSheetDataModel = require('../models/getExcelSheetModel');
 const ExcelSheetDataHistoryModel = require('../models/getExcelSheetHistoryModel');
 const XLSX = require('xlsx');
@@ -6,24 +7,45 @@ const fs = require('fs');
 
 const AddList = async (req, res) => {
     try {
-        if (!req.file) {
-            return res.status(400).send({ message: "Please upload an Excel file." });
+        if (req.company.role === 1) {
+            const existingLists = await ListModel.countDocuments({ createdBy: req.company.name });
+            if (existingLists >= 1) {
+                return res.status(403).send({ message: "You can upload only 1 list." });
+            }
+        }
+
+        // Role 3: Allow agents to upload lists
+        if (req.company.role === 3) {
+            if (!req.body.agentname) {
+                return res.status(400).send({ message: "Please provide an agent name." });
+            }
+
+            const agent = await AgentModel.findOne({ name: req.body.agentname });
+            if (!agent) {
+                return res.status(404).send({ message: "Agent not found." });
+            }
         }
 
         const workbook = XLSX.readFile(req.file.path);
         const sheetName = workbook.SheetNames[0];
         const sheetData = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName]);
 
+        // Prepare data for saving
         const fileData = {
             listname: req.body.listname,
             excelfile: req.file.filename,
             createdBy: req.company.name,
         };
 
-        // Save the uploaded file info to ExcelModel
+        if (req.company.role === 3) {
+            const agent = await AgentModel.findOne({ name: req.body.agentname });
+            if (agent) {
+                fileData.agentname = agent._id;
+            }
+        }
+
         const savedFile = await ListModel.create(fileData);
 
-        // Save each row from the Excel sheet data to ExcelSheetDataModel
         await Promise.all(sheetData.map(async (row) => {
             await ExcelSheetDataModel.create({
                 Name: row.Name,
@@ -33,22 +55,21 @@ const AddList = async (req, res) => {
                 agentName: req.company.name,
             });
         }));
-        // const recordCount = await ExcelSheetDataModel.countDocuments({ excelfileID: savedFile._id });
 
         res.status(201).send({
             message: "File uploaded and data stored successfully",
             data: savedFile,
             sheetData: sheetData,
-            // TotalRecord: recordCount
         });
+
     } catch (error) {
         console.log(error);
         return res.status(400).send({
             success: false,
             message: error.message
-        })
+        });
     }
-}
+};
 
 const GetByID = async (req, res) => {
     try {

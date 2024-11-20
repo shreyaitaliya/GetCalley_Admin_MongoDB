@@ -1,19 +1,24 @@
 const { CompanyModel } = require('../models/CompanyModel');
 const { CompanyhistoryModel } = require('../models/companyhistoryModel');
+const { SubscriptionPlan } = require('../models/subscriptionModel')
 const jwt = require('jsonwebtoken')
 
 // Add Company
 const CompanyAdd = async (req, res) => {
     try {
-        const { name, email, password, phone } = req.body;
+        const { name, email, password, phone, role } = req.body;
         const createdBy = req.user.email;
-        const lastModifiedBy = req.user.email;
 
-        const AddData = await CompanyModel.create({ name, email, password, phone, createdBy, lastModifiedBy });
+        const subscription = await SubscriptionPlan.findOne({ role });
+        if (!subscription) {
+            throw new Error(`Invalid role. Role ${role} does not exist in SubscriptionPlan.`);
+        }
 
-        return res.status(200).send({
+        const AddData = await CompanyModel.create({ name, email, password, phone, role, createdBy });
+
+        return res.status(200).send({    
             success: true,
-            message: 'Company Agent Added Successfully...',
+            message: 'Company Added Successfully...',
             Data: AddData
         });
 
@@ -67,7 +72,7 @@ const Update = async (req, res) => {
 
         // Create history with the companyID
         const history = await CompanyhistoryModel.create({
-            companyID: FindData._id, // Pass the companyID here
+            companyID: FindData._id,
             name: FindData.name,
             email: FindData.email,
             password: FindData.password,

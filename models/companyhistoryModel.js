@@ -3,6 +3,7 @@ const mongoose = require('mongoose');
 const companyhistorySchema = new mongoose.Schema({
     companyID: {
         type: mongoose.Schema.Types.ObjectId,
+        ref: 'company',
         required: true,
     },
     name: {

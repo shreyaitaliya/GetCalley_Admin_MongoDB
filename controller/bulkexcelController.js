@@ -1,4 +1,5 @@
 const { ExcelModel } = require('../models/bulkexcelModel');
+const { ListModel } = require('../models/ListModel');
 const ExcelSheetDataModel = require('../models/getExcelSheetModel');
 const ExcelSheetDataHistoryModel = require('../models/getExcelSheetHistoryModel');
 const XLSX = require('xlsx');
@@ -12,29 +13,74 @@ const AddExcelFile = async (req, res) => {
             return res.status(400).send({ message: "Please upload an Excel file." });
         }
 
+        const { listId } = req.body;
+
         const workbook = XLSX.readFile(req.file.path);
         const sheetName = workbook.SheetNames[0];
         const sheetData = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName]);
 
+        const role = req.company.role;
+        const existingCount = await ExcelSheetDataModel.countDocuments();
+
+        console.log("Existing Count:", existingCount);
+        console.log("Sheet Data Length:", sheetData.length);
+
+        if (role === 1 && existingCount + sheetData.length > 200) {
+            return res.status(400).send({
+                success: false,
+                message: "Role 1 is limited to 200 data entries. Please reduce your data."
+            });
+        }
+        if (role === 2 && existingCount + sheetData.length > 2000) {
+            return res.status(400).send({
+                success: false,
+                message: "Role 2 is limited to 2000 data entries. Please reduce your data."
+            });
+        }
+        if (role === 3 && existingCount + sheetData.length > 10000) {
+            return res.status(400).send({
+                success: false,
+                message: "Role 2 is limited to 2000 data entries. Please reduce your data."
+            });
+        }
+
+        const FindList = await ListModel.findOne({ _id: listId });
+        if (!FindList) {
+            return res.status(400).send({
+                success: false,
+                message: 'List Data Can Not Found..'
+            })
+        }
+        // Check if the list belongs to the same company
+        if (FindList.createdBy !== req.company.name) {
+            return res.status(403).send({
+                success: false,
+                message: 'You do not have permission to add data to this list.'
+            });
+        }
+
         const fileData = {
             excelfile: req.file.filename,
-            listId: req.body.listId,
+            listId,
             createdBy: req.company.name,
         };
 
         // Save the uploaded file info to ExcelModel
         const savedFile = await ExcelModel.create(fileData);
 
-        // Save each row from the Excel sheet data to ExcelSheetDataModel
         await Promise.all(sheetData.map(async (row) => {
-            await ExcelSheetDataModel.create({
-                Name: row.Name,
-                Contact: row.Contact,
-                Notes: row.Notes,
-                excelfileID: savedFile._id,
-                listId: savedFile.listId,
-                agentName: req.company.name,
-            });
+            if (!row.Name || !row.Contact || !row.Notes) {
+                console.log("Invalid Row:", row);
+            } else {
+                await ExcelSheetDataModel.create({
+                    Name: row.Name,
+                    Contact: row.Contact,
+                    Notes: row.Notes,
+                    excelfileID: savedFile._id,
+                    listId: savedFile.listId,
+                    agentName: req.company.name,
+                });
+            }
         }));
 
         res.status(201).send({
@@ -54,7 +100,23 @@ const AddManually = async (req, res) => {
         const { Name, Contact, Notes, listId } = req.body;
         const agentName = req.company.name;
 
+        const existingCount = await ExcelSheetDataModel.countDocuments();
+
+        // Check if adding this data would exceed 20 entries
+        if (existingCount + 1 > 10000) {
+            return res.status(400).send({
+                success: false,
+                message: "Cannot add more than 20 entries."
+            });
+        }
+
         const AddData = await ExcelSheetDataModel.create({ Name, Contact, Notes, listId, agentName });
+        if (AddData.length > 20) {
+            return res.status(400).send({
+                success: false,
+                message: "Excel sheet contains more than 10,000 rows. Please upload a smaller file."
+            });
+        }
 
         return res.status(200).send({
             success: true,
@@ -69,7 +131,7 @@ const AddManually = async (req, res) => {
             message: error.message
         })
     }
-}
+};
 
 // GetByAllData 
 const GetAllData = async (req, res) => {
@@ -87,11 +149,13 @@ const GetAllData = async (req, res) => {
             message: error.message
         })
     }
-}
+};
 
 // StartTime
 const StartCall = async (req, res) => {
     try {
+        const currentDate = new Date().toISOString().split('T')[0];
+
         const record = await ExcelSheetDataModel.findOne({ status: 'Pending' }).sort({ _id: 1 });
 
         if (!record) {
@@ -107,17 +171,30 @@ const StartCall = async (req, res) => {
                 message: "Cannot start call: DND mode is enabled for this contact"
             });
         }
+        if (record.role === 1) {
+            const callCountToday = await ExcelSheetDataModel.countDocuments({
+                role: 1,
+                callDate: { $gte: new Date(currentDate) }
+            });
+            
+            if (callCountToday >= 25) {
+                return res.status(400).json({
+                    success: false,
+                    message: "You have reached the daily limit of 25 calls"
+                });
+            }
+        }
 
         const updatedRecord = await ExcelSheetDataModel.findByIdAndUpdate(
             record._id,
             {
                 status: 'InProgress',
                 callStartTime: new Date(),
-                callDate: Date.now(), // Current date
-                duration: null, // Reset duration
-                callEndTime: null // Reset end time
+                callDate: Date.now(),
+                duration: null,
+                callEndTime: null
             },
-            { new: true } // Return the updated document
+            { new: true }
         );
 
         return res.status(200).json({
@@ -215,7 +292,7 @@ const DNDMode = async (req, res) => {
 
         })
     }
-}
+};
 
 // Latest Information
 const LatestInfo = async (req, res) => {
@@ -379,8 +456,7 @@ const Delete = async (req, res) => {
             message: error.message
         })
     }
-}
-
+};
 
 module.exports = {
     AddExcelFile, AddManually, GetAllData, StartCall, DNDMode, PauseCall, Delete, LatestInfo, CallHistory, Reschedual

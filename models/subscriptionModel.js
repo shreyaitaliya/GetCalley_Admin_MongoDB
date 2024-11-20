@@ -10,7 +10,7 @@ const subscriptionPlanSchema = new mongoose.Schema({
         enum: [1, 2, 3],
         default: 1,
         required: false
-    }
+    }   
 });
 
 // Create the model

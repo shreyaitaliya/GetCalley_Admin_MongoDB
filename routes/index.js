@@ -24,4 +24,7 @@ routes.use('/sms', require('../routes/SMSRoutes'))
 // SMS Routes
 routes.use('/subscription', require('../routes/subscriptionRoutes'))
 
+// Agent Routes
+routes.use('/agent', require('../routes/agentRoutes'))
+
 module.exports = routes     

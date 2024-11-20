@@ -1,11 +1,6 @@
 const mongoose = require('mongoose');
 
 const companySchema = new mongoose.Schema({
-    companyID: {
-        type: Number,
-        primaryKey: true,
-        autoIncrement: true
-    },
     name: {
         type: String,
         required: true,
@@ -23,9 +18,9 @@ const companySchema = new mongoose.Schema({
         required: true,
     },
     role: {
-        type: String,
-        required: true,
-        default: 'company',
+        type: Number,
+        enum: [1, 2, 3],
+        required: false
     },
     createdBy: {
         type: String,
@@ -35,22 +30,6 @@ const companySchema = new mongoose.Schema({
         type: Date,
         default: Date.now,
     },
-    lastModifiedBy: {
-        type: String,
-        default: null,
-    },
-    lastModifiedOn: {
-        type: Date,
-        default: Date.now,
-    },
-    isActive: {
-        type: Boolean,
-        default: true,
-    },
-    isDeleted: {
-        type: Boolean,
-        default: false,
-    }
 });
 
 const CompanyModel = mongoose.model('Company', companySchema);

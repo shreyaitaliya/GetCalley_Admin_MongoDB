@@ -9,6 +9,11 @@ const listSchema = new mongoose.Schema({
         type: String,
         required: true,
     },
+    agentname: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'agent', // Referencing the 'list' collection
+        required: false,
+    },
     createdBy: {
         type: String,
         required: true,

@@ -34,20 +34,20 @@ routes.post('/', TokenVerify, upload.single('excelfile'), ExcelFileController.Ad
 
 routes.post('/manually', TokenVerify, ExcelFileController.AddManually);
 
-routes.get('/', ExcelFileController.GetAllData);
+routes.get('/', TokenVerify, ExcelFileController.GetAllData);
 
-routes.put('/start', ExcelFileController.StartCall);
+routes.put('/start', TokenVerify, ExcelFileController.StartCall);
 
-routes.put('/dnd/:id', ExcelFileController.DNDMode);
+routes.put('/dnd/:id', TokenVerify, ExcelFileController.DNDMode);
 
-routes.put('/pause/:id', ExcelFileController.PauseCall);
+routes.put('/pause/:id', TokenVerify, ExcelFileController.PauseCall);
 
-routes.delete('/:id', ExcelFileController.Delete);
+routes.delete('/:id', TokenVerify, ExcelFileController.Delete);
 
-routes.get('/latest', ExcelFileController.LatestInfo);
+routes.get('/latest', TokenVerify, ExcelFileController.LatestInfo);
 
-routes.get('/history', ExcelFileController.CallHistory);
+routes.get('/history', TokenVerify, ExcelFileController.CallHistory);
 
-routes.put('/reschedual/:id', ExcelFileController.Reschedual);
+routes.put('/reschedual/:id', TokenVerify, ExcelFileController.Reschedual);
 
 module.exports = routes
