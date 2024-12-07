@@ -17,9 +17,14 @@ const companySchema = new mongoose.Schema({
         type: Number,
         required: true,
     },
+    image: {
+        type: String,
+        require: true,
+    },
     role: {
         type: Number,
-        enum: [1, 2, 3],
+        default: 1,
+        enum: [1, 2], // 1 for company 2 for agent
         required: false
     },
     createdBy: {

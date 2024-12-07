@@ -26,7 +26,6 @@ const authenticateToken = (req, res, next) => {
         }
 
         req.company = decoded.company;
-
         next();
     });
 };

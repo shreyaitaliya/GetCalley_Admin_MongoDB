@@ -19,6 +19,12 @@ const AgentSchema = new mongoose.Schema({
         default: 'Active',
         required: false
     },
+    role: {
+        type: Number,
+        default: 2,
+        enum: [1, 2, 3], // 1 for superadmin, 2 for company, 3 for Agent
+        required: false
+    },
     createdBy: {
         type: String,
         required: true,
